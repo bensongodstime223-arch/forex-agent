@@ -1,0 +1,37 @@
+name: Daily Chart Analysis
+
+on:
+  schedule:
+    # Runs at 07:00 UTC every day = 08:00 WAT (Nigeria time).
+    # Change the hour below if you want a different time.
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}  # lets you manually trigger a test run from GitHub's UI
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests pandas numpy matplotlib
+
+      - name: Run daily chart analysis
+        env:
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          NTFY_TOPIC: ${{ vars.NTFY_TOPIC }}
+        run: python3 daily_chart_analysis.py
+
+      - name: Commit log and charts back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add daily_analysis_log.csv chart_*.png
+          git diff --staged --quiet || git commit -m "Daily chart analysis update"
+          git push
